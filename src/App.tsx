@@ -48,7 +48,7 @@ import {
   Loader2
 } from 'lucide-react';
 import { cn } from './lib/utils';
-import { Pet, Shelter, ChatSession } from './types';
+import { Pet, Shelter, ChatSession, Listing } from './types';
 import { api } from './api';
 import OnboardingScreen from './screens/OnboardingScreen';
 import AuthScreen from './screens/AuthScreen';
@@ -1259,6 +1259,25 @@ export default function App() {
   const [showApplyForm, setShowApplyForm] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
 
+
+// 将放养区的 Listing 转为 Pet 格式，以便在首页和搜索中展示
+const mapListingToPet = (l: Listing): Pet => ({
+  id: l.id,
+  name: l.name,
+  breed: l.breed,
+  age: l.age,
+  gender: l.gender,
+  weight: '未知',
+  location: '放养区',
+  distance: '来自用户发布',
+  description: l.description,
+  image: l.image,
+  tags: [l.status === 'available' ? '待领养' : '已领养', l.breed],
+  status: l.status === 'available' ? '可领养' : '已领养',
+  isFavorite: false,
+  isAdopted: l.status === 'adopted',
+  health: { vaccination: '未知', neutering: '未知', deworming: '未知' },
+});
   const fetchData = async () => {
     setLoading(true);
     try {
