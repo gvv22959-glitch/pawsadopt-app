@@ -15,7 +15,7 @@ CREATE TABLE IF NOT EXISTS public.listings (
     owner_id TEXT NOT NULL DEFAULT '',
     owner_email TEXT NOT NULL DEFAULT '',
     status TEXT NOT NULL DEFAULT 'available' CHECK (status IN ('available', 'adopted')),
-    created_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 -- 开启行级安全

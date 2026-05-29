@@ -1,39 +1,41 @@
-import express from 'express';
-import cors from 'cors';
-import dotenv from 'dotenv';
-import { createClient } from '@supabase/supabase-js';
+/**
+ * Vercel Serverless Function — PawsAdopt API
+ *
+ * 所有 /api/* 请求由该函数处理。
+ * 本地开发请使用 server/index.ts（tsx watch server/index.ts）。
+ */
 
-dotenv.config();
+const express = require('express');
+const cors = require('cors');
+const { createClient } = require('@supabase/supabase-js');
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-const supabaseUrl = process.env.SUPABASE_URL || '';
-const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || '';
+// Supabase 客户端 — 环境变量由 Vercel 注入
+const SUPABASE_URL = process.env.SUPABASE_URL || '';
+const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || '';
+const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  console.warn('⚠️ SUPABASE_URL or SUPABASE_ANON_KEY is missing. Make sure to set them in .env file.');
-}
-
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
-
-// ===== Auth Middleware =====
-// 从 Authorization header 提取用户身份，附加到 req.user
-app.use(async (req: any, res, next) => {
+// ===== Auth 中间件 =====
+app.use(async (req, res, next) => {
   const authHeader = req.headers.authorization;
   if (authHeader?.startsWith('Bearer ')) {
-    const token = authHeader.split(' ')[1];
-    const { data: { user }, error } = await supabase.auth.getUser(token);
-    if (!error && user) {
-      req.user = { id: user.id, email: user.email };
+    try {
+      const token = authHeader.split(' ')[1];
+      const { data: { user }, error } = await supabase.auth.getUser(token);
+      if (!error && user) {
+        req.user = { id: user.id, email: user.email };
+      }
+    } catch {
+      // token 无效，忽略（公开接口仍可访问）
     }
   }
-  // 不阻断请求 — 公开接口不需要强制登录
   next();
 });
 
-// ===== 公开只读接口 =====
+// ===== 公开只读 =====
 
 app.get('/api/pets', async (_req, res) => {
   const { data, error } = await supabase.from('pets').select('*');
@@ -53,9 +55,8 @@ app.get('/api/chats', async (_req, res) => {
   res.json({ data });
 });
 
-// ===== 放养区 API =====
+// ===== 放养区 =====
 
-// 所有人可查看放养列表（不需要登录）
 app.get('/api/listings', async (_req, res) => {
   const { data, error } = await supabase
     .from('listings')
@@ -65,15 +66,13 @@ app.get('/api/listings', async (_req, res) => {
   res.json({ data });
 });
 
-// 发布放养（需要登录，用户身份由 token 决定，不信任客户端 owner_id）
-app.post('/api/listings', async (req: any, res) => {
+app.post('/api/listings', async (req, res) => {
   if (!req.user) {
     return res.status(401).json({ error: '请先登录再发布放养' });
   }
 
   const { name, breed, age, gender, description, image, contact } = req.body;
 
-  // 基础字段校验
   const missing = [];
   if (!name?.trim()) missing.push('name');
   if (!breed?.trim()) missing.push('breed');
@@ -84,32 +83,28 @@ app.post('/api/listings', async (req: any, res) => {
     return res.status(400).json({ error: `缺少必填字段: ${missing.join(', ')}` });
   }
 
-  const id = 'list_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+  const id = 'list_' + Date.now() + '_' + Math.random().toString(36).slice(2, 12);
+  const newListing = {
+    id,
+    name: name.trim(),
+    breed: breed.trim(),
+    age: age.trim(),
+    gender: gender || 'male',
+    description: description.trim(),
+    image: image || 'https://images.unsplash.com/photo-1543852786-1cf6534b8b4d?auto=format&fit=crop&q=80&w=1000',
+    contact: contact.trim(),
+    owner_id: req.user.id,
+    owner_email: req.user.email,
+    status: 'available',
+    // created_at 由数据库 DEFAULT NOW() 自动生成
+  };
 
-  const { data, error } = await supabase
-    .from('listings')
-    .insert([{
-      id,
-      name: name.trim(),
-      breed: breed.trim(),
-      age: age.trim(),
-      gender: gender || 'male',
-      description: description.trim(),
-      image: image || 'https://images.unsplash.com/photo-1543852786-1cf6534b8b4d?auto=format&fit=crop&q=80&w=1000',
-      contact: contact.trim(),
-      owner_id: req.user.id,       // ← 由服务端从 token 提取
-      owner_email: req.user.email, // ← 由服务端从 token 提取
-      status: 'available',
-      // created_at 由数据库 DEFAULT NOW() 自动生成，不需要客户端传
-    }])
-    .select();
-
+  const { data, error } = await supabase.from('listings').insert([newListing]).select();
   if (error) return res.status(500).json({ error: error.message });
   res.status(201).json({ data: data[0] });
 });
 
-// 更新放养状态（需要登录，且只能改自己的）
-app.put('/api/listings/:id', async (req: any, res) => {
+app.put('/api/listings/:id', async (req, res) => {
   if (!req.user) {
     return res.status(401).json({ error: '请先登录' });
   }
@@ -119,16 +114,14 @@ app.put('/api/listings/:id', async (req: any, res) => {
     return res.status(400).json({ error: 'status 必须是 available 或 adopted' });
   }
 
-  // 先查出这条记录，确认是本人的
+  // 验证所有权
   const { data: existing } = await supabase
     .from('listings')
     .select('owner_id')
     .eq('id', req.params.id)
     .single();
 
-  if (!existing) {
-    return res.status(404).json({ error: '放养记录不存在' });
-  }
+  if (!existing) return res.status(404).json({ error: '放养记录不存在' });
   if (existing.owner_id !== req.user.id) {
     return res.status(403).json({ error: '只能修改自己发布的放养' });
   }
@@ -138,42 +131,30 @@ app.put('/api/listings/:id', async (req: any, res) => {
     .update({ status })
     .eq('id', req.params.id)
     .select();
-
   if (error) return res.status(500).json({ error: error.message });
   res.json({ data: data[0] });
 });
 
-// 删除放养（需要登录，且只能删自己的）
-app.delete('/api/listings/:id', async (req: any, res) => {
+app.delete('/api/listings/:id', async (req, res) => {
   if (!req.user) {
     return res.status(401).json({ error: '请先登录' });
   }
 
-  // 先查出这条记录，确认是本人的
+  // 验证所有权
   const { data: existing } = await supabase
     .from('listings')
     .select('owner_id')
     .eq('id', req.params.id)
     .single();
 
-  if (!existing) {
-    return res.status(404).json({ error: '放养记录不存在' });
-  }
+  if (!existing) return res.status(404).json({ error: '放养记录不存在' });
   if (existing.owner_id !== req.user.id) {
     return res.status(403).json({ error: '只能删除自己发布的放养' });
   }
 
-  const { error } = await supabase
-    .from('listings')
-    .delete()
-    .eq('id', req.params.id);
-
+  const { error } = await supabase.from('listings').delete().eq('id', req.params.id);
   if (error) return res.status(500).json({ error: error.message });
   res.json({ data: { ok: true } });
 });
 
-const PORT = process.env.PORT || 4000;
-
-app.listen(PORT, () => {
-  console.log(`🚀 Backend server is running on http://localhost:${PORT}`);
-});
+module.exports = app;
