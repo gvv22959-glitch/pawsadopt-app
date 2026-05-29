@@ -42,6 +42,62 @@ app.get('/api/chats', async (req, res) => {
   res.json(data);
 });
 
+// --- 放养区 API ---
+
+app.get('/api/listings', async (req, res) => {
+  const { data, error } = await supabase
+    .from('listings')
+    .select('*')
+    .order('created_at', { ascending: false });
+  if (error) {
+    return res.status(500).json({ error: error.message });
+  }
+  res.json(data);
+});
+
+app.post('/api/listings', async (req, res) => {
+  const { id, name, breed, age, gender, description, image, contact, owner_id, owner_email } = req.body;
+  const { data, error } = await supabase
+    .from('listings')
+    .insert([{
+      id, name, breed, age, gender, description,
+      image: image || '',
+      contact: contact || '',
+      owner_id: owner_id || '',
+      owner_email: owner_email || '',
+      status: 'available',
+    }])
+    .select();
+  if (error) {
+    return res.status(500).json({ error: error.message });
+  }
+  res.json(data[0]);
+});
+
+app.put('/api/listings/:id', async (req, res) => {
+  const { status } = req.body;
+  const { data, error } = await supabase
+    .from('listings')
+    .update({ status })
+    .eq('id', req.params.id)
+    .select();
+  if (error) {
+    return res.status(500).json({ error: error.message });
+  }
+  res.json(data[0]);
+});
+
+app.delete('/api/listings/:id', async (req, res) => {
+  const { error } = await supabase
+    .from('listings')
+    .delete()
+    .eq('id', req.params.id);
+  if (error) {
+    return res.status(500).json({ error: error.message });
+  }
+  res.json({ ok: true });
+});
+
 const PORT = process.env.PORT || 4000;
 
 app.listen(PORT, () => {

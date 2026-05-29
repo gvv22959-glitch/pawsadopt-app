@@ -52,6 +52,7 @@ import { Pet, Shelter, ChatSession } from './types';
 import { api } from './api';
 import OnboardingScreen from './screens/OnboardingScreen';
 import AuthScreen from './screens/AuthScreen';
+import ListingScreen from './screens/ListingScreen';
 import { supabase } from './lib/supabase';
 
 export const DataContext = React.createContext<{
@@ -1441,6 +1442,7 @@ export default function App() {
           transition={{ duration: 0.2 }}
         >
           {currentTab === 'home' && <HomeScreen onSelectPet={setSelectedPet} onSelectCategory={setSelectedCategory} />}
+          {currentTab === 'listings' && <ListingScreen authUser={authUser} onBack={() => setCurrentTab('home')} />}
           {currentTab === 'messages' && <MessagesScreen onNavigate={handleNavigate} />}
           {currentTab === 'profile' && <ProfileScreen onNavigate={handleNavigate} onLogout={handleLogout} authEmail={authUser?.email} />}
           {currentTab === 'search' && <SearchScreen onSelectPet={setSelectedPet} />}
@@ -1451,6 +1453,7 @@ export default function App() {
         {[
           { id: 'home', label: '首页', icon: <Home size={24} /> },
           { id: 'search', label: '搜索', icon: <Search size={24} /> },
+          { id: 'listings', label: '放养', icon: <PawPrint size={24} /> },
           { id: 'messages', label: '消息', icon: <Mail size={24} /> },
           { id: 'profile', label: '个人', icon: <User size={24} /> },
         ].map((tab) => (

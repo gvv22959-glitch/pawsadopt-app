@@ -1,3 +1,18 @@
+export interface Listing {
+  id: string;
+  name: string;
+  breed: string;
+  age: string;
+  gender: 'male' | 'female';
+  description: string;
+  image: string;
+  contact: string;
+  owner_id: string;
+  owner_email: string;
+  status: 'available' | 'adopted';
+  created_at: string;
+}
+
 export interface Pet {
   id: string;
   name: string;
