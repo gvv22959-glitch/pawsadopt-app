@@ -2,7 +2,6 @@
  * PawsAdopt API 层
  *
  * 所有数据操作通过 Supabase 客户端进行，安全由 RLS 策略保障。
- * 本地开发可用 Express 后端（server/index.ts），但生产环境直连 Supabase。
  */
 
 import { Pet, Shelter, ChatSession, Listing } from './types';
@@ -27,6 +26,35 @@ export const api = {
     const { data, error } = await supabase.from('chats').select('*');
     if (error) throw new Error(error.message);
     return data || [];
+  },
+
+  // ===== 图片上传 =====
+
+  /**
+   * 上传图片到 Supabase Storage，返回公开访问 URL
+   * @param file 用户选择的图片文件
+   * @returns 图片的公开 URL
+   */
+  async uploadImage(file: File): Promise<string> {
+    // 生成唯一文件名：时间戳_随机串.扩展名
+    const fileExt = file.name.split('.').pop() || 'jpg';
+    const fileName = `${Date.now()}_${Math.random().toString(36).slice(2, 10)}.${fileExt}`;
+
+    const { data, error } = await supabase.storage
+      .from('listing-images')
+      .upload(fileName, file, {
+        cacheControl: '3600',  // 浏览器缓存 1 小时
+        upsert: false,
+      });
+
+    if (error) throw new Error(error.message);
+
+    // 获取公开 URL
+    const { data: urlData } = supabase.storage
+      .from('listing-images')
+      .getPublicUrl(data.path);
+
+    return urlData.publicUrl;
   },
 
   // ===== 放养区 =====

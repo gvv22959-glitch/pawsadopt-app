@@ -1,9 +1,10 @@
+import React from 'react';
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   PawPrint, Send, ArrowLeft,
   Loader2, CheckCircle2, AlertCircle, User, Calendar,
-  Phone, Trash2, Clock, MapPin
+  Phone, Trash2, Clock, MapPin, Image, Upload, X
 } from 'lucide-react';
 import { api } from '../api';
 import { Listing } from '../types';
@@ -45,6 +46,10 @@ export default function ListingScreen({
     description: '', image: '', contact: ''
   });
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  // 图片上传
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [submitting, setSubmitting] = useState(false);
 
   // 防止组件卸载后 setState
@@ -72,6 +77,25 @@ export default function ListingScreen({
   };
 
   useEffect(() => { fetchListings(); }, [authUser?.id]);
+  // 处理图片选择
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      setError('请选择图片文件'); setTimeout(() => { if (mountedRef.current) setError(''); }, 3000); return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      setError('图片不能超过 10MB'); setTimeout(() => { if (mountedRef.current) setError(''); }, 3000); return;
+    }
+    setImageFile(file);
+    setImagePreview(URL.createObjectURL(file));
+    setForm(f => ({ ...f, image: '' }));
+  };
+  // 清除已选图片
+  const clearImage = () => {
+    setImageFile(null); setImagePreview(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
 
   // ===== 发布放养 =====
   const handlePost = async () => {
@@ -87,6 +111,8 @@ export default function ListingScreen({
 
     setSubmitting(true);
     try {
+      let imageUrl = form.image.trim() || undefined;
+      if (imageFile) { imageUrl = await api.uploadImage(imageFile); }
       await api.createListing({
         name: form.name.trim(),
         breed: form.breed.trim(),
@@ -415,15 +441,25 @@ export default function ListingScreen({
                 {formErrors.description && <p className="text-xs text-red-500 mt-1">{formErrors.description}</p>}
               </div>
 
-              {/* 图片 URL（可选） */}
+              {/* ===== 图片上传 ===== */}
               <div>
-                <label className="text-xs font-semibold text-on-surface-variant mb-1.5 block">图片 URL（可选）</label>
-                <input
-                  value={form.image}
-                  onChange={e => setForm(f => ({...f, image: e.target.value}))}
-                  className="w-full h-12 px-4 rounded-xl border-2 border-transparent bg-surface-variant/20 outline-none text-sm focus:border-primary/30 transition-all"
-                  placeholder="粘贴图片链接，不填会用默认图片"
-                />
+                <label className="text-xs font-semibold text-on-surface-variant mb-1.5 block">宠物照片</label>
+                {imagePreview ? (
+                  <div className="relative mb-3 rounded-xl overflow-hidden bg-gray-100">
+                    <img src={imagePreview} alt="预览" className="w-full h-48 object-cover" />
+                    <button onClick={clearImage} className="absolute top-2 right-2 w-8 h-8 bg-black/50 backdrop-blur-sm rounded-full flex items-center justify-center text-white"><X size={16} /></button>
+                  </div>
+                ) : form.image.trim() ? (
+                  <div className="relative mb-3 rounded-xl overflow-hidden bg-gray-100">
+                    <img src={form.image.trim()} alt="预览" className="w-full h-48 object-cover" />
+                  </div>
+                ) : null}
+                <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileSelect} className="hidden" />
+                <button type="button" onClick={() => fileInputRef.current?.click()} className="w-full h-12 rounded-xl border-2 border-dashed border-primary/30 bg-primary/5 hover:bg-primary/10 transition-colors flex items-center justify-center gap-2 text-sm font-semibold text-primary mb-3">
+                  <Upload size={18} />{imagePreview ? '重新选择图片' : '点击上传宠物照片'}
+                </button>
+                <div className="relative"><div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-100"></div></div><div className="relative flex justify-center text-xs"><span className="bg-white px-3 text-outline">或者粘贴图片链接</span></div></div>
+                <input value={form.image} onChange={e => setForm(f => ({...f, image: e.target.value}))} className="w-full h-12 px-4 rounded-xl border-2 border-transparent bg-surface-variant/20 outline-none text-sm focus:border-primary/30 transition-all mt-3" placeholder="https://..." disabled={!!imageFile} />
               </div>
 
               {/* 联系方式 */}
