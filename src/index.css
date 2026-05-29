@@ -1,0 +1,48 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Plus Jakarta Sans", "Noto Sans SC", ui-sans-serif, system-ui, sans-serif;
+  
+  --color-primary: #9b4500;
+  --color-primary-container: #ff8c42;
+  --color-on-primary-container: #6a2d00;
+  --color-secondary: #126c40;
+  --color-secondary-container: #a1f5bc;
+  --color-on-secondary-container: #1c7245;
+  --color-tertiary: #895026;
+  --color-tertiary-container: #e29a69;
+  --color-background: #fbf9f8;
+  --color-surface: #ffffff;
+  --color-surface-variant: #f2f2f2;
+  --color-on-surface: #1b1c1c;
+  --color-on-surface-variant: #564338;
+  --color-outline: #897266;
+  --color-outline-variant: #ddc1b3;
+
+  --radius-xl: 1rem;
+  --radius-2xl: 1.5rem;
+  --radius-3xl: 2rem;
+}
+
+@layer base {
+  body {
+    @apply bg-background text-on-surface font-sans antialiased;
+  }
+}
+
+.pill-shadow {
+  box-shadow: 0 10px 25px -5px rgba(74, 74, 74, 0.08);
+}
+
+.soft-shadow {
+  box-shadow: 0 20px 40px rgba(74, 74, 74, 0.08);
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
