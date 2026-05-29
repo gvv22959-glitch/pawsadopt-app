@@ -50,11 +50,9 @@ export const api = {
     if (error) throw new Error(error.message);
 
     // 获取公开 URL
-    const { data: urlData } = supabase.storage
-      .from('listing-images')
-      .getPublicUrl(data.path);
-
-    return urlData.publicUrl;
+    // 手动拼接公开 URL（比 getPublicUrl 更可靠）
+    const publicUrl = `https://mbhobdxttemgeajzxtuo.supabase.co/storage/v1/object/public/listing-images/${data.path}`;
+    return publicUrl;
   },
 
   // ===== 放养区 =====
