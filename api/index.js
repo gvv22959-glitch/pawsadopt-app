@@ -1,13 +1,13 @@
 /**
  * Vercel Serverless Function — PawsAdopt API
  *
- * 所有 /api/* 请求由该函数处理。
+ * 所有 /api/* 请求由该函数统一处理。
  * 本地开发请使用 server/index.ts（tsx watch server/index.ts）。
  */
 
-const express = require('express');
-const cors = require('cors');
-const { createClient } = require('@supabase/supabase-js');
+import express from 'express';
+import cors from 'cors';
+import { createClient } from '@supabase/supabase-js';
 
 const app = express();
 app.use(cors());
@@ -19,7 +19,7 @@ const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || '';
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // ===== Auth 中间件 =====
-app.use(async (req, res, next) => {
+app.use(async (req, _res, next) => {
   const authHeader = req.headers.authorization;
   if (authHeader?.startsWith('Bearer ')) {
     try {
@@ -157,4 +157,4 @@ app.delete('/api/listings/:id', async (req, res) => {
   res.json({ data: { ok: true } });
 });
 
-module.exports = app;
+export default app;
