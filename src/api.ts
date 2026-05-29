@@ -1,60 +1,43 @@
+/**
+ * PawsAdopt API 层
+ *
+ * 所有数据操作通过 Supabase 客户端进行，安全由 RLS 策略保障。
+ * 本地开发可用 Express 后端（server/index.ts），但生产环境直连 Supabase。
+ */
+
 import { Pet, Shelter, ChatSession, Listing } from './types';
 import { supabase } from './lib/supabase';
-
-// 开发环境走本地 Express（端口 4000），生产环境走 Vercel Serverless（同源 /api）
-const API_BASE_URL = import.meta.env.DEV ? 'http://localhost:4000/api' : '/api';
-
-// 获取当前用户的 Supabase access_token，用于后端认证
-async function getAuthHeaders(): Promise<Record<string, string>> {
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-  };
-  try {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (session?.access_token) {
-      headers['Authorization'] = `Bearer ${session.access_token}`;
-    }
-  } catch {
-    // 未登录或获取 token 失败时，不传 Authorization header
-  }
-  return headers;
-}
-
-// 统一的响应解析：后端返回 { data: ... } 格式
-async function unwrap<T>(response: Response): Promise<T> {
-  if (!response.ok) {
-    const body = await response.json().catch(() => ({}));
-    throw new Error(body.error || `Request failed with status ${response.status}`);
-  }
-  const json = await response.json();
-  return json.data as T;
-}
 
 export const api = {
   // ===== 宠物 / 救助站 / 聊天 =====
 
   async getPets(): Promise<Pet[]> {
-    const response = await fetch(`${API_BASE_URL}/pets`);
-    return unwrap<Pet[]>(response);
+    const { data, error } = await supabase.from('pets').select('*');
+    if (error) throw new Error(error.message);
+    return data || [];
   },
 
   async getShelters(): Promise<Shelter[]> {
-    const response = await fetch(`${API_BASE_URL}/shelters`);
-    return unwrap<Shelter[]>(response);
+    const { data, error } = await supabase.from('shelters').select('*');
+    if (error) throw new Error(error.message);
+    return data || [];
   },
 
   async getChats(): Promise<ChatSession[]> {
-    const response = await fetch(`${API_BASE_URL}/chats`);
-    return unwrap<ChatSession[]>(response);
+    const { data, error } = await supabase.from('chats').select('*');
+    if (error) throw new Error(error.message);
+    return data || [];
   },
 
   // ===== 放养区 =====
 
   async getListings(): Promise<Listing[]> {
-    const response = await fetch(`${API_BASE_URL}/listings`, {
-      headers: await getAuthHeaders(),
-    });
-    return unwrap<Listing[]>(response);
+    const { data, error } = await supabase
+      .from('listings')
+      .select('*')
+      .order('created_at', { ascending: false });
+    if (error) throw new Error(error.message);
+    return data || [];
   },
 
   async createListing(listing: {
@@ -66,28 +49,44 @@ export const api = {
     image?: string;
     contact: string;
   }): Promise<Listing> {
-    const response = await fetch(`${API_BASE_URL}/listings`, {
-      method: 'POST',
-      headers: await getAuthHeaders(),
-      body: JSON.stringify(listing),
-    });
-    return unwrap<Listing>(response);
+    // 获取当前用户
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.user) throw new Error('请先登录再发布放养');
+
+    const id = 'list_' + Date.now() + '_' + Math.random().toString(36).slice(2, 12);
+    const newListing = {
+      id,
+      name: listing.name.trim(),
+      breed: listing.breed.trim(),
+      age: listing.age.trim(),
+      gender: listing.gender,
+      description: listing.description.trim(),
+      image: listing.image?.trim() || 'https://images.unsplash.com/photo-1543852786-1cf6534b8b4d?auto=format&fit=crop&q=80&w=1000',
+      contact: listing.contact.trim(),
+      owner_id: session.user.id,
+      owner_email: session.user.email || '',
+      status: 'available' as const,
+    };
+
+    const { data, error } = await supabase.from('listings').insert([newListing]).select();
+    if (error) throw new Error(error.message);
+    return data![0] as Listing;
   },
 
   async updateListingStatus(id: string, status: 'available' | 'adopted'): Promise<Listing> {
-    const response = await fetch(`${API_BASE_URL}/listings/${id}`, {
-      method: 'PUT',
-      headers: await getAuthHeaders(),
-      body: JSON.stringify({ status }),
-    });
-    return unwrap<Listing>(response);
+    const { data, error } = await supabase
+      .from('listings')
+      .update({ status })
+      .eq('id', id)
+      .select();
+    if (error) throw new Error(error.message);
+    if (!data || data.length === 0) throw new Error('放养记录不存在');
+    return data[0] as Listing;
   },
 
   async deleteListing(id: string): Promise<{ ok: boolean }> {
-    const response = await fetch(`${API_BASE_URL}/listings/${id}`, {
-      method: 'DELETE',
-      headers: await getAuthHeaders(),
-    });
-    return unwrap<{ ok: boolean }>(response);
+    const { error } = await supabase.from('listings').delete().eq('id', id);
+    if (error) throw new Error(error.message);
+    return { ok: true };
   },
 };
