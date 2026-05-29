@@ -119,7 +119,7 @@ export default function ListingScreen({
         age: form.age.trim(),
         gender: form.gender,
         description: form.description.trim(),
-        image: form.image.trim() || undefined,
+        image: imageUrl,
         contact: form.contact.trim(),
       });
       if (!mountedRef.current) return;
