@@ -16,10 +16,32 @@ app.use(express.json());
 // Supabase 客户端 — 环境变量由 Vercel 注入
 const SUPABASE_URL = process.env.SUPABASE_URL || '';
 const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || '';
-const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+let supabase = null;
+try {
+  if (SUPABASE_URL && SUPABASE_ANON_KEY) {
+    supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  } else {
+    console.error('⚠️ SUPABASE_URL or SUPABASE_ANON_KEY is missing — API will return 500');
+  }
+} catch (err) {
+  console.error('⚠️ Failed to create Supabase client:', err.message);
+}
+
+// ===== 健康检查 =====
+app.get('/api', (_req, res) => {
+  res.json({
+    status: supabase ? 'healthy' : 'degraded',
+    hasSupabase: !!supabase,
+    hasUrl: !!SUPABASE_URL,
+    hasKey: !!SUPABASE_ANON_KEY,
+    nodeVersion: process.version,
+  });
+});
 
 // ===== Auth 中间件 =====
 app.use(async (req, _res, next) => {
+  if (!supabase) return next();
   const authHeader = req.headers.authorization;
   if (authHeader?.startsWith('Bearer ')) {
     try {
@@ -35,21 +57,27 @@ app.use(async (req, _res, next) => {
   next();
 });
 
+// 如果 Supabase 不可用，所有数据接口返回 500
+function requireSupabase(_req, res, next) {
+  if (!supabase) return res.status(500).json({ error: 'Database not configured' });
+  next();
+}
+
 // ===== 公开只读 =====
 
-app.get('/api/pets', async (_req, res) => {
+app.get('/api/pets', requireSupabase, async (_req, res) => {
   const { data, error } = await supabase.from('pets').select('*');
   if (error) return res.status(500).json({ error: error.message });
   res.json({ data });
 });
 
-app.get('/api/shelters', async (_req, res) => {
+app.get('/api/shelters', requireSupabase, async (_req, res) => {
   const { data, error } = await supabase.from('shelters').select('*');
   if (error) return res.status(500).json({ error: error.message });
   res.json({ data });
 });
 
-app.get('/api/chats', async (_req, res) => {
+app.get('/api/chats', requireSupabase, async (_req, res) => {
   const { data, error } = await supabase.from('chats').select('*');
   if (error) return res.status(500).json({ error: error.message });
   res.json({ data });
@@ -57,7 +85,7 @@ app.get('/api/chats', async (_req, res) => {
 
 // ===== 放养区 =====
 
-app.get('/api/listings', async (_req, res) => {
+app.get('/api/listings', requireSupabase, async (_req, res) => {
   const { data, error } = await supabase
     .from('listings')
     .select('*')
@@ -66,7 +94,7 @@ app.get('/api/listings', async (_req, res) => {
   res.json({ data });
 });
 
-app.post('/api/listings', async (req, res) => {
+app.post('/api/listings', requireSupabase, async (req, res) => {
   if (!req.user) {
     return res.status(401).json({ error: '请先登录再发布放养' });
   }
@@ -104,7 +132,7 @@ app.post('/api/listings', async (req, res) => {
   res.status(201).json({ data: data[0] });
 });
 
-app.put('/api/listings/:id', async (req, res) => {
+app.put('/api/listings/:id', requireSupabase, async (req, res) => {
   if (!req.user) {
     return res.status(401).json({ error: '请先登录' });
   }
@@ -135,7 +163,7 @@ app.put('/api/listings/:id', async (req, res) => {
   res.json({ data: data[0] });
 });
 
-app.delete('/api/listings/:id', async (req, res) => {
+app.delete('/api/listings/:id', requireSupabase, async (req, res) => {
   if (!req.user) {
     return res.status(401).json({ error: '请先登录' });
   }
