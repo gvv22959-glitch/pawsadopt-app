@@ -1262,31 +1262,27 @@ export default function App() {
 
 // 将放养区的 Listing 转为 Pet 格式，以便在首页和搜索中展示
 const mapListingToPet = (l: Listing): Pet => ({
-  id: l.id,
-  name: l.name,
-  breed: l.breed,
-  age: l.age,
-  gender: l.gender,
-  weight: '未知',
-  location: '放养区',
-  distance: '来自用户发布',
-  description: l.description,
-  image: l.image,
+  id: l.id, name: l.name, breed: l.breed, age: l.age, gender: l.gender,
+  weight: '未知', location: '放养区', distance: '来自用户发布',
+  description: l.description, image: l.image,
   tags: [l.status === 'available' ? '待领养' : '已领养', l.breed],
   status: l.status === 'available' ? '可领养' : '已领养',
-  isFavorite: false,
-  isAdopted: l.status === 'adopted',
+  isFavorite: false, isAdopted: l.status === 'adopted',
   health: { vaccination: '未知', neutering: '未知', deworming: '未知' },
 });
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [petsData, sheltersData, chatsData] = await Promise.all([
+      const [petsData, sheltersData, chatsData, listingsData] = await Promise.all([
         api.getPets(),
         api.getShelters(),
-        api.getChats()
+        api.getChats(),
+        api.getListings(),
       ]);
-      setPets(petsData);
+      const listingPets: Pet[] = (listingsData || [])
+        .filter((l: Listing) => l.status === "available")
+        .map(mapListingToPet);
+      setPets([...listingPets, ...petsData]);
       setShelters(sheltersData);
       setChats(chatsData);
     } catch (err) {
