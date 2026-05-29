@@ -139,7 +139,10 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, onBack }) => {
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
-        options: { data: { nickname } },
+        options: {
+          data: { nickname },
+          emailRedirectTo: 'https://pawsadopt-app-itsw.vercel.app',
+        },
       });
       if (error) throw error;
       if (data.user && data.session) {
