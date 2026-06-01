@@ -47,6 +47,7 @@ export default function ListingScreen({
     description: '', image: '', contact: ''
   });
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  const [submitting, setSubmitting] = useState(false);
   // 图片上传
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);

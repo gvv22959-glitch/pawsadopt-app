@@ -380,44 +380,4 @@ export const api = {
     }
   },
 
-  // ===== 文件上传 =====
-
-  async uploadImage(file: File, bucket: string = 'listings-images'): Promise<string> {
-    // 检查文件大小（限制 5MB）
-    if (file.size > 5 * 1024 * 1024) {
-      throw new Error('图片大小不能超过 5MB');
-    }
-
-    // 检查文件类型
-    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
-    if (!allowedTypes.includes(file.type)) {
-      throw new Error('仅支持 JPG、PNG、WebP、GIF 格式');
-    }
-
-    const ext = file.name.split('.').pop() || 'jpg';
-    const filename = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`;
-
-    // 使用 Supabase SDK 自带的 upload，自动处理鉴权和上传格式
-    const { data, error } = await supabase.storage
-      .from(bucket)
-      .upload(filename, file, {
-        cacheControl: '3600',
-        upsert: false,
-      });
-
-    if (error) {
-      // 给出更友好的错误提示
-      if (error.message.includes('Bucket') || error.message.includes('not found')) {
-        throw new Error('存储桶不存在，请联系管理员创建 listings-images 存储桶');
-      }
-      if (error.message.includes('security') || error.message.includes('permission') || error.message.includes('policy')) {
-        throw new Error('没有上传权限，请检查 Storage RLS 策略');
-      }
-      throw new Error(error.message || '上传失败，请重试');
-    }
-
-    // 获取公开访问 URL
-    const { data: urlData } = supabase.storage.from(bucket).getPublicUrl(data.path);
-    return urlData.publicUrl;
-  },
 };
