@@ -138,8 +138,8 @@ export default function ListingScreen({
         image: imageUrl || form.image.trim() || undefined,
         contact: form.contact.trim(),
       });
-      // 同步到首页 pets 表，让放养区宠物出现在首页
-      await api.createPetFromListing(created);
+      // 同步到首页 pets 表（失败不影响发布）
+      api.createPetFromListing(created).catch(() => {});
       if (!mountedRef.current) return;
       setSuccess('🎉 发布成功！你的宠物已经在放养区和首页可见了');
       setForm({ name: '', breed: '', age: '', gender: 'male', description: '', image: '', contact: '' });
