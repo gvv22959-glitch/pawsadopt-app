@@ -45,10 +45,12 @@ import {
   Search as SearchIcon,
   ThumbsUp,
   AlertCircle,
-  Loader2
+  Loader2,
+  Sparkles,
+  Star
 } from 'lucide-react';
 import { cn } from './lib/utils';
-import { Pet, Shelter, ChatSession, Listing } from './types';
+import { Pet, Shelter, ChatSession, Application, Listing } from './types';
 import { api } from './api';
 import OnboardingScreen from './screens/OnboardingScreen';
 import AuthScreen from './screens/AuthScreen';
@@ -117,7 +119,7 @@ const Chip = ({ children, className, variant = 'default' }: { children: React.Re
 
 // --- Screens ---
 
-const HomeScreen = ({ onSelectPet, onSelectCategory }: { onSelectPet: (pet: Pet) => void, onSelectCategory: (cat: string) => void }) => {
+const HomeScreen = ({ onSelectPet, onSelectCategory, onGoToListingPost }: { onSelectPet: (pet: Pet) => void, onSelectCategory: (cat: string) => void, onGoToListingPost: () => void }) => {
   const { pets: PETS } = React.useContext(DataContext);
   return (
     <div className="pb-24 pt-4">
@@ -221,14 +223,14 @@ const HomeScreen = ({ onSelectPet, onSelectCategory }: { onSelectPet: (pet: Pet)
         </div>
       </main>
 
-      <button className="fixed bottom-24 right-6 w-14 h-14 bg-primary text-white rounded-full shadow-lg flex items-center justify-center hover:scale-105 active:scale-90 transition-transform z-50">
+      <button onClick={onGoToListingPost} className="fixed bottom-24 right-6 w-14 h-14 bg-primary text-white rounded-full shadow-lg flex items-center justify-center hover:scale-105 active:scale-90 transition-transform z-50">
         <Plus size={32} />
       </button>
     </div>
   );
 };
 
-const PetDetailScreen = ({ pet, onBack, onApply }: { pet: Pet, onBack: () => void, onApply: () => void }) => {
+const PetDetailScreen = ({ pet, onBack, onApply, onChat }: { pet: Pet, onBack: () => void, onApply: () => void, onChat: (pet: Pet) => void }) => {
   const { shelters: SHELTERS } = React.useContext(DataContext);
   const shelter = SHELTERS[0] || { name: '未知机构', type: '未知', image: '' };
   return (
@@ -315,6 +317,23 @@ const PetDetailScreen = ({ pet, onBack, onApply }: { pet: Pet, onBack: () => voi
           </div>
         </section>
 
+        {/* AI 领养顾问 */}
+        <section className="mb-8">
+          <button
+            onClick={() => onChat(pet)}
+            className="w-full p-4 bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200/30 rounded-2xl flex items-center gap-3 hover:shadow-md active:scale-[0.98] transition-all"
+          >
+            <div className="w-10 h-10 bg-purple-100 rounded-xl flex items-center justify-center">
+              <Sparkles size={20} className="text-purple-500" />
+            </div>
+            <div className="text-left flex-1">
+              <p className="font-bold text-sm text-purple-700">AI 领养顾问</p>
+              <p className="text-xs text-on-surface-variant">有疑问？问问我关于{pet.name}的一切</p>
+            </div>
+            <ChevronRight size={18} className="text-purple-400" />
+          </button>
+        </section>
+
         <div className="flex items-center gap-4 p-4 border border-outline-variant rounded-2xl mb-8">
           <div className="w-12 h-12 rounded-full overflow-hidden">
             <img src={shelter.image} alt="staff" className="w-full h-full object-cover" />
@@ -323,12 +342,12 @@ const PetDetailScreen = ({ pet, onBack, onApply }: { pet: Pet, onBack: () => voi
             <h4 className="font-bold">{shelter.name}</h4>
             <p className="text-xs text-on-surface-variant">{shelter.type}</p>
           </div>
-          <Button size="sm" variant="tonal" className="bg-secondary-container text-on-secondary-container">咨询</Button>
+          <Button onClick={() => onChat(pet)} size="sm" variant="tonal" className="bg-secondary-container text-on-secondary-container">咨询</Button>
         </div>
       </div>
 
       <footer className="fixed bottom-0 left-0 w-full bg-white/80 backdrop-blur-lg p-6 flex gap-4 items-center z-50">
-        <button className="w-14 h-14 rounded-full bg-surface-variant flex items-center justify-center text-on-surface-variant">
+        <button onClick={() => onChat(pet)} className="w-14 h-14 rounded-full bg-surface-variant flex items-center justify-center text-on-surface-variant hover:bg-primary/10 hover:text-primary transition-colors">
           <MessageCircle size={28} />
         </button>
         <Button onClick={onApply} className="flex-1 h-14 text-lg" variant="primary">
@@ -339,7 +358,7 @@ const PetDetailScreen = ({ pet, onBack, onApply }: { pet: Pet, onBack: () => voi
   );
 };
 
-const SuccessScreen = ({ onBackHome }: { onBackHome: () => void }) => {
+const SuccessScreen = ({ onBackHome, onViewProgress }: { onBackHome: () => void, onViewProgress: () => void }) => {
   return (
     <div className="min-h-screen bg-background pb-32">
       <header className="h-16 px-5 flex justify-between items-center fixed top-0 w-full bg-background z-50">
@@ -382,7 +401,7 @@ const SuccessScreen = ({ onBackHome }: { onBackHome: () => void }) => {
           </div>
 
           <div className="w-full space-y-4">
-            <Button className="w-full h-14" variant="primary">查看申请进度</Button>
+            <Button onClick={onViewProgress} className="w-full h-14" variant="primary">查看申请进度</Button>
             <Button onClick={onBackHome} className="w-full h-14" variant="tonal">返回首页</Button>
           </div>
         </div>
@@ -427,7 +446,7 @@ const SuccessScreen = ({ onBackHome }: { onBackHome: () => void }) => {
   );
 };
 
-const ProfileScreen = ({ onNavigate, onLogout, authEmail }: { onNavigate: (view: string) => void; onLogout: () => void; authEmail?: string }) => {
+const ProfileScreen = ({ onNavigate, onLogout, authEmail, adoptedCount, favoriteCount }: { onNavigate: (view: string) => void; onLogout: () => void; authEmail?: string; adoptedCount?: number; favoriteCount?: number }) => {
   return (
     <div className="pb-32 pt-16 px-5 space-y-8">
       <header className="fixed top-0 left-0 w-full bg-background/80 backdrop-blur-md h-16 px-5 flex justify-between items-center z-50">
@@ -456,11 +475,11 @@ const ProfileScreen = ({ onNavigate, onLogout, authEmail }: { onNavigate: (view:
 
       <section className="grid grid-cols-2 gap-4">
         <div className="bg-white p-5 rounded-3xl pill-shadow space-y-1 cursor-pointer active:scale-95 transition-all" onClick={() => onNavigate('my-adoption')}>
-          <p className="text-3xl font-bold text-primary">02</p>
+          <p className="text-3xl font-bold text-primary">{String(adoptedCount ?? 0).padStart(2, '0')}</p>
           <p className="text-xs text-on-surface-variant">我的领养</p>
         </div>
         <div className="bg-white p-5 rounded-3xl pill-shadow space-y-1 cursor-pointer active:scale-95 transition-all" onClick={() => onNavigate('my-favorites')}>
-          <p className="text-3xl font-bold text-primary">14</p>
+          <p className="text-3xl font-bold text-primary">{String(favoriteCount ?? 0).padStart(2, '0')}</p>
           <p className="text-xs text-on-surface-variant">我的收藏</p>
         </div>
         <div className="col-span-2 bg-primary-container/10 p-5 rounded-3xl border border-primary/10 flex items-center justify-between">
@@ -644,7 +663,14 @@ const SimpleListScreen = ({ title, items, onBack }: { title: string, items: { ic
   );
 };
 
-const AdoptionStatusScreen = ({ onBack }: { onBack: () => void }) => {
+const AdoptionStatusScreen = ({ onBack, applications }: { onBack: () => void, applications: Application[] }) => {
+  const statusMap: Record<string, { label: string; active: boolean }> = {
+    pending: { label: '已提交申请', active: false },
+    reviewing: { label: '资料审核中', active: false },
+    approved: { label: '申请成功', active: true },
+    rejected: { label: '未通过', active: false },
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <header className="h-16 px-5 flex items-center gap-4 sticky top-0 bg-background/80 backdrop-blur-md z-50">
@@ -654,42 +680,57 @@ const AdoptionStatusScreen = ({ onBack }: { onBack: () => void }) => {
         <h1 className="text-xl font-bold text-primary">领养申请状态</h1>
       </header>
       <main className="px-5 py-6 space-y-6">
-        <div className="bg-white p-6 rounded-[32px] soft-shadow space-y-6">
-          <div className="flex items-center gap-4">
-            <div className="w-16 h-16 rounded-2xl overflow-hidden bg-gray-100 italic">
-               <img src="https://images.unsplash.com/photo-1552053831-71594a27632d?auto=format&fit=crop&q=80&w=200" className="w-full h-full object-cover" alt="pet" />
-            </div>
-            <div>
-              <p className="font-bold text-lg">金毛 · 小七</p>
-              <p className="text-xs text-on-surface-variant">申请单号: AD20240507001</p>
-            </div>
+        {applications.length === 0 ? (
+          <div className="text-center py-20 space-y-3 opacity-50">
+            <PawPrint size={48} className="mx-auto" />
+            <p className="text-sm">还没有提交过领养申请</p>
           </div>
-          
-          <div className="space-y-6 relative ml-4">
-            <div className="absolute left-[-17px] top-2 bottom-2 w-0.5 bg-primary/20" />
-            {[
-              { status: '申请成功', time: '2024-05-07 10:24', active: true, desc: '恭喜你！申请已通过初步审核' },
-              { status: '资料审核中', time: '2024-05-06 14:12', active: false },
-              { status: '已提交申请', time: '2024-05-06 09:45', active: false },
-            ].map((step, i) => (
-              <div key={i} className="flex gap-6 relative">
-                 <div className={cn("w-3 h-3 rounded-full absolute left-[-22px] top-1.5 z-10", step.active ? "bg-primary scale-125" : "bg-primary/20")} />
-                 <div className="flex-1 space-y-1">
-                   <p className={cn("font-bold text-sm", step.active ? "text-primary" : "text-on-surface-variant")}>{step.status}</p>
-                   <p className="text-[10px] text-outline">{step.time}</p>
-                   {step.desc && <p className="text-xs text-on-surface-variant bg-surface-variant/30 p-3 rounded-xl mt-2">{step.desc}</p>}
-                 </div>
+        ) : (
+          applications.map((app, idx) => {
+            const s = statusMap[app.status] || statusMap.pending;
+            return (
+              <div key={app.id} className="bg-white p-6 rounded-[32px] soft-shadow space-y-6">
+                <div>
+                  <p className="font-bold text-lg">申请单号: {app.id.slice(0, 16)}</p>
+                  <p className="text-xs text-on-surface-variant">宠物ID: {app.pet_id}</p>
+                </div>
+                <div className="space-y-4 relative ml-4">
+                  <div className="absolute left-[-13px] top-1 bottom-1 w-0.5 bg-primary/20" />
+                  {['pending', 'reviewing', 'approved'].map((status, i) => {
+                    const step = statusMap[status];
+                    const isActive = app.status === status || (app.status === 'approved' && status !== 'rejected');
+                    const isPast = ['rejected'].includes(app.status) ? false :
+                      (status === 'pending' || (status === 'reviewing' && ['reviewing', 'approved'].includes(app.status)) || (status === 'approved' && app.status === 'approved'));
+                    return (
+                      <div key={i} className="flex gap-4 relative">
+                        <div className={cn("w-3 h-3 rounded-full absolute left-[-18px] top-1 z-10",
+                          isActive ? "bg-primary scale-125" : "bg-primary/20")} />
+                        <div className="flex-1 space-y-1">
+                          <p className={cn("font-bold text-sm", isActive ? "text-primary" : "text-on-surface-variant")}>{step.label}</p>
+                          <p className="text-[10px] text-outline">{app.created_at ? new Date(app.created_at).toLocaleDateString('zh-CN') : ''}</p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
-            ))}
-          </div>
-        </div>
+            );
+          })
+        )}
       </main>
     </div>
   );
 };
 
-const MessagesScreen = ({ onNavigate }: { onNavigate: (view: string, data?: any) => void }) => {
+const MessagesScreen = ({ onNavigate, authUserId }: { onNavigate: (view: string, data?: any) => void, authUserId?: string }) => {
   const { chats: CHATS } = React.useContext(DataContext);
+  // 过滤当前用户参与的会话
+  const myChats = authUserId
+    ? CHATS.filter(c => {
+        const pIds: string[] = (c as any).participantIds || (c as any).participant_ids || [];
+        return pIds.length === 0 || pIds.includes(authUserId);
+      })
+    : CHATS;
   return (
     <div className="pb-32 pt-16 px-5 space-y-6">
       <header className="fixed top-0 left-0 w-full bg-background/80 backdrop-blur-md h-16 px-5 flex justify-between items-center z-50">
@@ -722,7 +763,7 @@ const MessagesScreen = ({ onNavigate }: { onNavigate: (view: string, data?: any)
       </div>
 
       <div className="space-y-3">
-        {CHATS.map((chat) => (
+        {myChats.map((chat) => (
           <div 
             key={chat.id} 
             onClick={() => onNavigate('chat-detail', chat)}
@@ -753,7 +794,39 @@ const MessagesScreen = ({ onNavigate }: { onNavigate: (view: string, data?: any)
   );
 };
 
-const ApplicationFormScreen = ({ onBack, onSubmit }: { onBack: () => void, onSubmit: () => void }) => {
+const ApplicationFormScreen = ({ pet, onBack, onSubmit }: { pet: Pet, onBack: () => void, onSubmit: () => void }) => {
+  const [appName, setAppName] = useState('');
+  const [appPhone, setAppPhone] = useState('');
+  const [appHousing, setAppHousing] = useState('');
+  const [appNote, setAppNote] = useState('');
+  const [commitment, setCommitment] = useState([false, false, false]);
+  const [submitting, setSubmittingApp] = useState(false);
+  const [error, setErrorApp] = useState('');
+
+  const allCommit = commitment.every(Boolean);
+
+  const handleSubmit = async () => {
+    if (!appName.trim()) { setErrorApp('请输入姓名'); return; }
+    if (!appPhone.trim()) { setErrorApp('请输入联系电话'); return; }
+    if (!allCommit) { setErrorApp('请同意全部领养承诺'); return; }
+    setSubmittingApp(true);
+    setErrorApp('');
+    try {
+      await api.submitApplication({
+        pet_id: pet.id,
+        applicant_name: appName.trim(),
+        applicant_phone: appPhone.trim(),
+        housing_type: appHousing,
+        note: appNote.trim(),
+      });
+      onSubmit();
+    } catch (err: any) {
+      setErrorApp(err.message || '提交失败，请重试');
+    } finally {
+      setSubmittingApp(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <header className="h-16 px-5 flex justify-between items-center sticky top-0 bg-background/80 backdrop-blur-md z-50">
@@ -787,11 +860,11 @@ const ApplicationFormScreen = ({ onBack, onSubmit }: { onBack: () => void, onSub
 
         <section className="bg-white rounded-2xl p-4 soft-shadow flex items-center gap-4">
           <div className="w-20 h-20 rounded-xl overflow-hidden bg-gray-100 flex-shrink-0">
-             <img src="https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?auto=format&fit=crop&q=80&w=200" className="w-full h-full object-cover" alt="pet" />
+             <img src={pet.image} className="w-full h-full object-cover" alt="pet" />
           </div>
           <div>
-            <h2 className="text-lg font-bold">申请领养：小橘</h2>
-            <p className="text-xs text-on-surface-variant">中华田园猫 · 1岁 · 公</p>
+            <h2 className="text-lg font-bold">申请领养：{pet.name}</h2>
+            <p className="text-xs text-on-surface-variant">{pet.breed} · {pet.age} · {pet.gender === 'male' ? '公' : '母'}</p>
           </div>
         </section>
 
@@ -804,11 +877,11 @@ const ApplicationFormScreen = ({ onBack, onSubmit }: { onBack: () => void, onSub
           <div className="space-y-4">
             <div className="space-y-1.5">
               <label className="text-xs font-bold text-on-surface-variant ml-2">姓名</label>
-              <input type="text" placeholder="请输入您的真实姓名" className="w-full h-12 px-4 rounded-2xl border-none bg-surface-variant/50 focus:bg-white focus:ring-2 focus:ring-primary-container transition-all outline-none text-sm" />
+              <input type="text" value={appName} onChange={e => setAppName(e.target.value)} placeholder="请输入您的真实姓名" className="w-full h-12 px-4 rounded-2xl border-none bg-surface-variant/50 focus:bg-white focus:ring-2 focus:ring-primary-container transition-all outline-none text-sm" />
             </div>
             <div className="space-y-1.5">
               <label className="text-xs font-bold text-on-surface-variant ml-2">联系电话</label>
-              <input type="tel" placeholder="请输入手机号" className="w-full h-12 px-4 rounded-2xl border-none bg-surface-variant/50 focus:bg-white focus:ring-2 focus:ring-primary-container transition-all outline-none text-sm" />
+              <input type="tel" value={appPhone} onChange={e => setAppPhone(e.target.value)} placeholder="请输入手机号" className="w-full h-12 px-4 rounded-2xl border-none bg-surface-variant/50 focus:bg-white focus:ring-2 focus:ring-primary-container transition-all outline-none text-sm" />
             </div>
           </div>
 
@@ -816,7 +889,11 @@ const ApplicationFormScreen = ({ onBack, onSubmit }: { onBack: () => void, onSub
              <label className="text-xs font-bold text-on-surface-variant ml-2">住房情况</label>
              <div className="grid grid-cols-2 gap-3">
                 {['自有住房', '租房居住'].map((type) => (
-                  <button key={type} className="h-14 bg-surface-variant/50 rounded-2xl text-sm font-medium hover:bg-primary-container/10 hover:text-primary transition-all active:scale-[0.98]">
+                  <button
+                    key={type}
+                    onClick={() => setAppHousing(type)}
+                    className={`h-14 rounded-2xl text-sm font-medium transition-all active:scale-[0.98] ${appHousing === type ? 'bg-primary text-white' : 'bg-surface-variant/50 hover:bg-primary-container/10 hover:text-primary'}`}
+                  >
                     {type}
                   </button>
                 ))}
@@ -833,10 +910,15 @@ const ApplicationFormScreen = ({ onBack, onSubmit }: { onBack: () => void, onSub
             {[
               '我承诺会给予宠物充足的陪伴，不离不弃。',
               '我承诺按时为宠物接种疫苗、驱虫，适龄绝育。',
-              '我承诺绝不随意遗弃宠。',
+              '我承诺绝不随意遗弃宠物。',
             ].map((text, i) => (
               <label key={i} className="flex items-start gap-3 cursor-pointer">
-                <input type="checkbox" className="mt-1 w-5 h-5 rounded border-outline text-primary focus:ring-primary-container" />
+                <input
+                  type="checkbox"
+                  checked={commitment[i]}
+                  onChange={() => setCommitment(prev => prev.map((v, j) => j === i ? !v : v))}
+                  className="mt-1 w-5 h-5 rounded border-outline text-primary focus:ring-primary-container"
+                />
                 <span className="text-xs text-on-surface-variant leading-tight">{text}</span>
               </label>
             ))}
@@ -845,12 +927,15 @@ const ApplicationFormScreen = ({ onBack, onSubmit }: { onBack: () => void, onSub
 
         <section className="space-y-2">
            <label className="text-xs font-bold text-on-surface-variant ml-2">补充说明</label>
-           <textarea rows={4} placeholder="说说您想说的话..." className="w-full p-4 rounded-2xl border-none bg-surface-variant/50 focus:bg-white focus:ring-2 focus:ring-primary-container transition-all outline-none text-sm resize-none" />
+           <textarea rows={4} value={appNote} onChange={e => setAppNote(e.target.value)} placeholder="说说您想说的话..." className="w-full p-4 rounded-2xl border-none bg-surface-variant/50 focus:bg-white focus:ring-2 focus:ring-primary-container transition-all outline-none text-sm resize-none" />
         </section>
       </main>
 
       <footer className="fixed bottom-0 left-0 w-full bg-white/80 backdrop-blur-md p-6 flex flex-col items-center z-50">
-        <Button onClick={onSubmit} className="w-full h-14" variant="primary">提交领养申请</Button>
+        {error && <p className="text-xs text-red-500 mb-2 flex items-center gap-1"><AlertCircle size={14} />{error}</p>}
+        <Button onClick={handleSubmit} disabled={submitting} className="w-full h-14" variant="primary">
+          {submitting ? <><Loader2 size={18} className="animate-spin" /> 提交中...</> : '提交领养申请'}
+        </Button>
         <p className="mt-2 text-[10px] text-outline">提交即代表您同意《PawsAdopt 领养协议》</p>
       </footer>
     </div>
@@ -984,17 +1069,45 @@ const ContactSupportScreen = ({ onBack }: { onBack: () => void }) => {
   );
 };
 
-const ChatDetailScreen = ({ chat, onBack }: { chat: ChatSession, onBack: () => void }) => {
-  const [messages, setMessages] = useState([
-    { id: 1, text: `您好，这里是${chat.name}，请问有什么可以帮助您的？`, fromUser: false, time: '10:45' },
-    { id: 2, text: '我想了解一下领养详情。', fromUser: true, time: '10:50' },
-  ]);
+const ChatDetailScreen = ({ chat, onBack, authUserId }: { chat: ChatSession, onBack: () => void, authUserId?: string }) => {
+  const [messages, setMessages] = useState<{ id: number; text: string; fromUser: boolean; time: string }[]>([]);
   const [inputValue, setInputValue] = useState('');
+  const [msgLoading, setMsgLoading] = useState(true);
 
-  const sendMessage = () => {
+  // 从 Supabase 加载历史消息
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const msgs = await api.getMessages(chat.id);
+        const formatted = msgs.map(m => ({
+          id: m.id,
+          text: m.text,
+          fromUser: m.sender_id === authUserId,
+          time: m.created_at ? new Date(m.created_at).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }) : '',
+        }));
+        setMessages(formatted.length > 0 ? formatted : [
+          { id: 1, text: `您好，这里是${chat.name}，请问有什么可以帮助您的？`, fromUser: false, time: '' },
+        ]);
+      } catch {
+        setMessages([{ id: 1, text: `您好，这里是${chat.name}，请问有什么可以帮助您的？`, fromUser: false, time: '' }]);
+      } finally {
+        setMsgLoading(false);
+      }
+    };
+    load();
+  }, [chat.id, chat.name, authUserId]);
+
+  const sendMessage = async () => {
     if (!inputValue.trim()) return;
-    setMessages([...messages, { id: Date.now(), text: inputValue, fromUser: true, time: '刚刚' }]);
+    const text = inputValue.trim();
     setInputValue('');
+    // 乐观更新 UI
+    setMessages(prev => [...prev, { id: Date.now(), text, fromUser: true, time: '刚刚' }]);
+    try {
+      await api.sendMessage(chat.id, text);
+    } catch {
+      // 发送失败时静默处理，消息已在本地显示
+    }
   };
 
   return (
@@ -1116,11 +1229,15 @@ const PetListScreen = ({ title, petIds, onBack, onSelectPet }: { title: string, 
   );
 };
 
-const NotificationsScreen = ({ onBack }: { onBack: () => void }) => {
+const NotificationsScreen = ({ onBack, applications }: { onBack: () => void, applications: Application[] }) => {
   const notifications = [
-    { title: '领养申请已提交', content: '您对“小七”的领养申请已正式提交，请耐心等待审核。', time: '1小时前', unread: true },
-    { title: '积分变动通知', content: '感谢您的爱心反馈，获得 50 爱心积分！', time: '昨天', unread: false },
-    { title: '平台服务通知', content: 'PawsAdopt 2.0版本正式上线，快来体验新功能吧！', time: '2024-05-01', unread: false },
+    ...applications.map(app => ({
+      title: app.status === 'approved' ? '领养申请已通过' : app.status === 'rejected' ? '领养申请未通过' : '领养申请处理中',
+      content: `宠物ID: ${app.pet_id} — 当前状态: ${app.status === 'pending' ? '已提交' : app.status === 'reviewing' ? '审核中' : app.status === 'approved' ? '已批准' : '未通过'}`,
+      time: app.created_at ? new Date(app.created_at).toLocaleDateString('zh-CN') : '',
+      unread: app.status === 'pending' || app.status === 'reviewing',
+    })),
+    { title: '平台服务通知', content: 'PawsAdopt 闭环功能已全面升级，快来体验新的站内消息和申请追踪功能！', time: '今天', unread: false },
   ];
 
   return (
@@ -1145,7 +1262,7 @@ const NotificationsScreen = ({ onBack }: { onBack: () => void }) => {
   );
 };
 
-const SearchScreen = ({ onSelectPet }: { onSelectPet: (pet: Pet) => void }) => {
+const SearchScreen = ({ onSelectPet, onSearch }: { onSelectPet: (pet: Pet) => void, onSearch?: (query: string) => void }) => {
   const { pets: PETS } = React.useContext(DataContext);
   const [searchTerm, setSearchTerm] = useState('');
   
@@ -1184,7 +1301,7 @@ const SearchScreen = ({ onSelectPet }: { onSelectPet: (pet: Pet) => void }) => {
               {trending.map(tag => (
                 <button 
                   key={tag} 
-                  onClick={() => setSearchTerm(tag)}
+                  onClick={() => { setSearchTerm(tag); onSearch?.(tag); }}
                   className="bg-surface-variant/50 hover:bg-primary-container/10 hover:text-primary transition-all px-5 py-2 rounded-full text-xs text-on-surface-variant font-medium"
                 >
                   {tag}
@@ -1253,6 +1370,9 @@ export default function App() {
   const [pets, setPets] = useState<Pet[]>([]);
   const [shelters, setShelters] = useState<Shelter[]>([]);
   const [chats, setChats] = useState<ChatSession[]>([]);
+  const [applications, setApplications] = useState<Application[]>([]);
+  const [adoptedCount, setAdoptedCount] = useState(0);
+  const [favoriteCount, setFavoriteCount] = useState(0);
   const [loading, setLoading] = useState(false);
 
   const [subView, setSubView] = useState<string | null>(null);
@@ -1273,11 +1393,13 @@ const mapListingToPet = (l: Listing): Pet => ({
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [petsData, sheltersData, chatsData, listingsData] = await Promise.all([
+      const [petsData, sheltersData, chatsData, listingsData, appsData, favsData] = await Promise.all([
         api.getPets(),
         api.getShelters(),
         api.getChats(),
         api.getListings(),
+        api.getApplications(),
+        api.getFavorites(),
       ]);
       const listingPets: Pet[] = (listingsData || [])
         .filter((l: Listing) => l.status === "available")
@@ -1285,6 +1407,9 @@ const mapListingToPet = (l: Listing): Pet => ({
       setPets([...listingPets, ...petsData]);
       setShelters(sheltersData);
       setChats(chatsData);
+      setApplications(appsData);
+      setAdoptedCount(appsData.filter(a => a.status === 'approved').length);
+      setFavoriteCount(favsData.length);
     } catch (err) {
       console.error('Failed to fetch data:', err);
     } finally {
@@ -1379,17 +1504,81 @@ const mapListingToPet = (l: Listing): Pet => ({
     setSubView(view);
   };
 
+  // 从宠物详情发起聊天
+  const handlePetChat = async (pet: Pet) => {
+    const userId = authUser?.id || 'guest';
+    try {
+      const chat = await api.getOrCreateChatForPet(pet, userId);
+      setChats(prev => prev.find(c => c.id === chat.id) ? prev : [chat, ...prev]);
+      setSelectedChat(chat);
+      setSubView('chat-detail');
+    } catch {
+      // fallback: create local chat
+    }
+  };
+
+  // 从放养详情发起聊天
+  const handleListingChat = async (listing: Listing) => {
+    const userId = authUser?.id || 'guest';
+    try {
+      const chat = await api.getOrCreateChatForListing(listing, userId);
+      setChats(prev => prev.find(c => c.id === chat.id) ? prev : [chat, ...prev]);
+      setSelectedChat(chat);
+      setSubView('chat-detail');
+    } catch {
+      // fallback
+    }
+  };
+
+  // 从首页跳转到放养区发布
+  const handleGoToListingPost = () => {
+    // 需要在 ListingScreen 中切换到 post tab
+    setCurrentTab('listings');
+    // 通过 localStorage 传递意图
+    localStorage.setItem('pawsadopt_listing_tab', 'post');
+  };
+
   // Transition screen logic
-  if (showSuccess) return <SuccessScreen onBackHome={() => { setShowSuccess(false); setShowApplyForm(false); setSelectedPet(null); setSubView(null); setCurrentTab('home'); }} />;
-  if (showApplyForm) return <ApplicationFormScreen onBack={() => setShowApplyForm(false)} onSubmit={() => setShowSuccess(true)} />;
-  if (selectedPet) return <PetDetailScreen pet={selectedPet} onBack={() => setSelectedPet(null)} onApply={() => setShowApplyForm(true)} />;
+  if (showSuccess) return (
+    <SuccessScreen
+      onBackHome={() => { setShowSuccess(false); setShowApplyForm(false); setSelectedPet(null); setSubView(null); setCurrentTab('home'); }}
+      onViewProgress={() => {
+        setShowSuccess(false);
+        setShowApplyForm(false);
+        setSubView('adoption-status');
+      }}
+    />
+  );
+  if (showApplyForm && selectedPet) return (
+    <ApplicationFormScreen
+      pet={selectedPet}
+      onBack={() => setShowApplyForm(false)}
+      onSubmit={async () => {
+        setShowSuccess(true);
+        // Reload applications data
+        try {
+          const apps = await api.getApplications();
+          setApplications(apps);
+          setAdoptedCount(apps.filter(a => a.status === 'approved').length);
+        } catch {}
+      }}
+    />
+  );
+  if (selectedPet) return (
+    <PetDetailScreen
+      pet={selectedPet}
+      onBack={() => setSelectedPet(null)}
+      onApply={() => setShowApplyForm(true)}
+      onChat={handlePetChat}
+    />
+  );
   if (selectedCategory) return <CategoryScreen category={selectedCategory} onBack={() => setSelectedCategory(null)} onSelectPet={setSelectedPet} />;
 
   // Profile Sub-views
   const favoritedPetIds = pets.filter(p => p.isFavorite).map(p => p.id);
   const adoptedPetIds = pets.filter(p => p.isAdopted).map(p => p.id);
 
-  if (subView === 'chat-detail' && selectedChat) return <ChatDetailScreen onBack={goBackSubView} chat={selectedChat} />;
+  if (subView === 'chat-detail' && selectedChat) return <ChatDetailScreen onBack={goBackSubView} chat={selectedChat} authUserId={authUser?.id} />;
   
   if (subView === 'my-adoption') return <PetListScreen title="我的领养" petIds={adoptedPetIds} onBack={goBackSubView} onSelectPet={setSelectedPet} />;
   if (subView === 'my-favorites') return <PetListScreen title="我的收藏" petIds={favoritedPetIds} onBack={goBackSubView} onSelectPet={setSelectedPet} />;
@@ -1438,12 +1627,11 @@ const mapListingToPet = (l: Listing): Pet => ({
       ]} 
     />
   );
-  if (subView === 'adoption-status') return <AdoptionStatusScreen onBack={goBackSubView} />;
-
   if (subView === 'faq') return <FAQScreen onBack={goBackSubView} />;
   if (subView === 'feedback') return <FeedbackScreen onBack={goBackSubView} />;
   if (subView === 'contact-support') return <ContactSupportScreen onBack={goBackSubView} />;
-  if (subView === 'notifications') return <NotificationsScreen onBack={goBackSubView} />;
+  if (subView === 'notifications') return <NotificationsScreen onBack={goBackSubView} applications={applications} />;
+  if (subView === 'adoption-status') return <AdoptionStatusScreen onBack={goBackSubView} applications={applications} />;
 
   return (
     <DataContext.Provider value={{ pets, shelters, chats }}>
@@ -1456,11 +1644,11 @@ const mapListingToPet = (l: Listing): Pet => ({
           exit={{ opacity: 0, x: -10 }}
           transition={{ duration: 0.2 }}
         >
-          {currentTab === 'home' && <HomeScreen onSelectPet={setSelectedPet} onSelectCategory={setSelectedCategory} />}
-          {currentTab === 'listings' && <ListingScreen authUser={authUser} onBack={() => setCurrentTab('home')} />}
-          {currentTab === 'messages' && <MessagesScreen onNavigate={handleNavigate} />}
-          {currentTab === 'profile' && <ProfileScreen onNavigate={handleNavigate} onLogout={handleLogout} authEmail={authUser?.email} />}
-          {currentTab === 'search' && <SearchScreen onSelectPet={setSelectedPet} />}
+          {currentTab === 'home' && <HomeScreen onSelectPet={setSelectedPet} onSelectCategory={setSelectedCategory} onGoToListingPost={handleGoToListingPost} />}
+          {currentTab === 'listings' && <ListingScreen authUser={authUser} onBack={() => setCurrentTab('home')} onChatWithListing={handleListingChat} />}
+          {currentTab === 'messages' && <MessagesScreen onNavigate={handleNavigate} authUserId={authUser?.id} />}
+          {currentTab === 'profile' && <ProfileScreen onNavigate={handleNavigate} onLogout={handleLogout} authEmail={authUser?.email} adoptedCount={adoptedCount} favoriteCount={favoriteCount} />}
+          {currentTab === 'search' && <SearchScreen onSelectPet={setSelectedPet} onSearch={(q) => { api.saveSearch(q).catch(() => {}); }} />}
         </motion.div>
       </AnimatePresence>
 

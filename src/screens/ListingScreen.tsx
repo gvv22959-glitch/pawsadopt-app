@@ -1,10 +1,9 @@
-import React from 'react';
-import { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   PawPrint, Send, ArrowLeft,
   Loader2, CheckCircle2, AlertCircle, User, Calendar,
-  Phone, Trash2, Clock, MapPin, Image, Upload, X
+  Phone, Trash2, Clock, MapPin, MessageCircle, Image, Upload, X
 } from 'lucide-react';
 import { api } from '../api';
 import { Listing } from '../types';
@@ -27,10 +26,12 @@ const formatTime = (t: string) => {
 // ===== ListingScreen =====
 export default function ListingScreen({
   authUser,
-  onBack
+  onBack,
+  onChatWithListing
 }: {
   authUser: { id: string; email: string | undefined } | null;
   onBack: () => void;
+  onChatWithListing?: (listing: Listing) => void;
 }) {
   const [tab, setTab] = useState<'browse' | 'post'>('browse');
   const [listings, setListings] = useState<Listing[]>([]);
@@ -49,8 +50,8 @@ export default function ListingScreen({
   // 图片上传
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [uploadingImg, setUploadingImg] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [submitting, setSubmitting] = useState(false);
 
   // 防止组件卸载后 setState
   const mountedRef = useRef(true);
@@ -97,6 +98,15 @@ export default function ListingScreen({
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
+  // 从首页 "+" 按钮跳转时自动切换到发布 tab
+  useEffect(() => {
+    const intent = localStorage.getItem('pawsadopt_listing_tab');
+    if (intent === 'post') {
+      setTab('post');
+      localStorage.removeItem('pawsadopt_listing_tab');
+    }
+  }, []);
+
   // ===== 发布放养 =====
   const handlePost = async () => {
     // 客户端校验
@@ -111,21 +121,30 @@ export default function ListingScreen({
 
     setSubmitting(true);
     try {
+      // 如果有本地图片，先上传到 Supabase Storage
       let imageUrl = form.image.trim() || undefined;
-      if (imageFile) { imageUrl = await api.uploadImage(imageFile); }
-      await api.createListing({
+      if (imageFile) {
+        setUploadingImg(true);
+        imageUrl = await api.uploadImage(imageFile);
+        setUploadingImg(false);
+      }
+      const created = await api.createListing({
         name: form.name.trim(),
         breed: form.breed.trim(),
         age: form.age.trim(),
         gender: form.gender,
         description: form.description.trim(),
-        image: imageUrl,
+        image: imageUrl || form.image.trim() || undefined,
         contact: form.contact.trim(),
       });
+      // 同步到首页 pets 表，让放养区宠物出现在首页
+      await api.createPetFromListing(created);
       if (!mountedRef.current) return;
-      setSuccess('🎉 发布成功！你的宠物已经在放养区了');
+      setSuccess('🎉 发布成功！你的宠物已经在放养区和首页可见了');
       setForm({ name: '', breed: '', age: '', gender: 'male', description: '', image: '', contact: '' });
-      setFormErrors({});  // ← 修复：之前不清空 formErrors
+      setFormErrors({});
+      setImageFile(null);
+      setImagePreview('');
       setTab('browse');
       fetchListings();
       setTimeout(() => { if (mountedRef.current) setSuccess(''); }, 4000);
@@ -142,6 +161,8 @@ export default function ListingScreen({
   const handleMarkAdopted = async (id: string) => {
     try {
       await api.updateListingStatus(id, 'adopted');
+      // 同步状态到首页 pets 表
+      await api.syncListingToPet(id, 'adopted');
       if (!mountedRef.current) return;
       fetchListings();
       setSelectedListing(null);
@@ -237,12 +258,20 @@ export default function ListingScreen({
               </button>
             )}
             {!isMine && l.status === 'available' && (
-              <a
-                href={`tel:${l.contact}`}
-                className="flex-1 h-14 rounded-full font-bold bg-primary text-white shadow-lg shadow-primary/30 hover:bg-primary/90 active:scale-95 transition-all flex items-center justify-center gap-2"
-              >
-                <Phone size={18} /> 联系发布者
-              </a>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => onChatWithListing?.(l)}
+                  className="flex-1 h-14 rounded-full font-bold bg-primary text-white shadow-lg shadow-primary/30 hover:bg-primary/90 active:scale-95 transition-all flex items-center justify-center gap-2"
+                >
+                  <MessageCircle size={18} /> 站内消息
+                </button>
+                <a
+                  href={`tel:${l.contact}`}
+                  className="w-14 h-14 rounded-full border-2 border-outline-variant text-on-surface-variant flex items-center justify-center hover:border-primary hover:text-primary active:scale-95 transition-all"
+                >
+                  <Phone size={20} />
+                </a>
+              </div>
             )}
           </div>
         </div>
@@ -447,7 +476,7 @@ export default function ListingScreen({
                 {imagePreview ? (
                   <div className="relative mb-3 rounded-xl overflow-hidden bg-gray-100">
                     <img src={imagePreview} alt="预览" className="w-full h-48 object-cover" />
-                    <button onClick={clearImage} className="absolute top-2 right-2 w-8 h-8 bg-black/50 backdrop-blur-sm rounded-full flex items-center justify-center text-white"><X size={16} /></button>
+                    <button onClick={() => { setImageFile(null); setImagePreview(null); if (fileInputRef.current) fileInputRef.current.value = ''; }} className="absolute top-2 right-2 w-8 h-8 bg-black/50 backdrop-blur-sm rounded-full flex items-center justify-center text-white"><X size={16} /></button>
                   </div>
                 ) : form.image.trim() ? (
                   <div className="relative mb-3 rounded-xl overflow-hidden bg-gray-100">
@@ -478,11 +507,11 @@ export default function ListingScreen({
               {/* 提交按钮 */}
               <button
                 onClick={handlePost}
-                disabled={submitting}
+                disabled={submitting || uploadingImg}
                 className="w-full h-14 rounded-full font-bold text-base bg-primary text-white shadow-lg shadow-primary/30 hover:bg-primary/90 active:scale-95 transition-all flex items-center justify-center gap-2 mt-2 disabled:opacity-60 disabled:cursor-not-allowed"
               >
-                {submitting ? (
-                  <><Loader2 size={20} className="animate-spin" /> 发布中...</>
+                {submitting || uploadingImg ? (
+                  <><Loader2 size={20} className="animate-spin" /> {uploadingImg ? '上传图片中...' : '发布中...'}</>
                 ) : (
                   <><Send size={18} /> 发布放养</>
                 )}

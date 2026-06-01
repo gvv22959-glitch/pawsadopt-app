@@ -172,6 +172,42 @@ app.delete('/api/listings/:id', async (req: any, res) => {
   res.json({ data: { ok: true } });
 });
 
+// ===== AI 领养顾问（Gemini） =====
+app.post('/api/ai/ask', async (req: any, res) => {
+  const { pet, question } = req.body;
+  if (!pet || !question) {
+    return res.status(400).json({ error: '缺少 pet 或 question 参数' });
+  }
+
+  try {
+    // 使用 Google Gemini API
+    const { GoogleGenAI } = await import('@google/genai');
+    const genai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
+    const prompt = `你是一位专业的宠物领养顾问。请你根据以下宠物信息，用中文回答用户的问题。
+
+宠物信息：
+- 名字：${pet.name}
+- 品种：${pet.breed}
+- 年龄：${pet.age}
+- 描述：${pet.description || '无'}
+
+用户问题：${question}
+
+请用亲切、专业的语气回答，控制在 150 字以内。如果问题是关于领养流程、养宠建议等的通用问题，也请尽力回答。`;
+
+    const result = await genai.models.generateContent({
+      model: 'gemini-2.0-flash',
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+    });
+
+    const answer = result.text || '抱歉，我暂时无法回答这个问题，请稍后再试。';
+    res.json({ data: { answer } });
+  } catch (err: any) {
+    console.error('Gemini API error:', err);
+    res.json({ data: { answer: 'AI 顾问暂时离线，请稍后重试。您也可以直接联系救助站咨询。' } });
+  }
+});
+
 const PORT = process.env.PORT || 4000;
 
 app.listen(PORT, () => {

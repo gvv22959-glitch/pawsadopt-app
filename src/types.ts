@@ -33,6 +33,9 @@ export interface Pet {
     neutering: string;
     deworming: string;
   };
+  // 数据来源：'official' = 官方/救助站, 'user' = 放养区用户发布
+  sourceType?: string;
+  sourceListingId?: string;
 }
 
 export interface Shelter {
@@ -50,4 +53,31 @@ export interface ChatSession {
   image: string;
   unreadCount?: number;
   online?: boolean;
+  // 业务关联
+  petId?: string;
+  listingId?: string;
+  participantIds?: string[];
+}
+
+// 聊天消息（持久化到 messages 表）
+export interface Message {
+  id: number;
+  chat_id: string;
+  sender_id: string;
+  text: string;
+  created_at: string;
+}
+
+// 领养申请
+export interface Application {
+  id: string;
+  pet_id: string;
+  applicant_id: string;
+  applicant_name: string;
+  applicant_phone: string;
+  housing_type: string;
+  note: string;
+  status: 'pending' | 'reviewing' | 'approved' | 'rejected';
+  created_at: string;
+  updated_at: string;
 }
